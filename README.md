@@ -14,6 +14,7 @@ the LLM to respond in the proper format, as well as parsing the response into th
 ```typescript
 import { makeAi } from 'zod-ai';
 import { OpenAI } from 'openai';
+import { z } from 'zod';
 
 // Initialize your OpenAI client
 const client = new OpenAI(process.env.OPENAI_API_KEY);
