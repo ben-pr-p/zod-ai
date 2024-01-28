@@ -1,6 +1,5 @@
 import { z, ZodFunction, ZodTuple, ZodTypeAny, ZodSchema } from "zod";
 import { OpenAI } from "openai";
-// import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs";
 import invariant from "tiny-invariant";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { TrimmedJSONSchema, trimGeneratedJsonSchema } from "./util";
@@ -19,6 +18,7 @@ type AiFnOptions = {
   client: OpenAI;
   model: ModelOptions;
   overrideSystemPrompt?: GenerateSystemPrompt;
+  clientSupportsJsonSchema?: boolean;
 };
 
 export const validateFunction = <
@@ -84,6 +84,9 @@ export const validateFunction = <
 
 export const makeAi = (options: AiFnOptions) => {
   const { client, model } = options;
+
+  const clientSupportsJsonSchema = options.clientSupportsJsonSchema ?? false;
+
   const createSystemPrompt =
     options.overrideSystemPrompt ||
     ((
@@ -113,10 +116,17 @@ export const makeAi = (options: AiFnOptions) => {
       outputSchema
     );
 
+    const responseFormat = clientSupportsJsonSchema
+      ? ({
+          type: "json_object",
+          schema: outputSchema,
+        } as const)
+      : ({ type: "json_object" } as const);
+
     return async (argument: z.infer<Args>[0]) => {
       const aiResult = await client.chat.completions.create({
         model,
-        response_format: { type: "json_object" },
+        response_format: responseFormat,
         messages: [
           {
             role: "system",

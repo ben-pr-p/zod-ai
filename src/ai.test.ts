@@ -6,6 +6,7 @@ import { cleanEnv, str } from "envalid";
 
 const config = cleanEnv(process.env, {
   OPENAI_API_KEY: str(),
+  ANYSCALE_ENDPOINTS_API_KEY: str(),
 });
 
 const client = new OpenAI({ apiKey: config.OPENAI_API_KEY });
@@ -116,4 +117,53 @@ describe("ai function", () => {
     const result = await returnFamousActorsFromVibe("villain");
     expect(Array.isArray(result)).toEqual(true);
   });
+});
+
+const anyscale = new OpenAI({
+  baseURL: "https://api.endpoints.anyscale.com/v1",
+  apiKey: config.ANYSCALE_ENDPOINTS_API_KEY,
+});
+
+describe("anyscale json schema addition", () => {
+  test("anyscale schema additions should be passed along and successfully constrain output", async () => {
+    /**
+     * This provides an overrideSystemPrompt that excludes providing the output schema
+     * This tests that anyscale is actually constraining generation, because otherwise
+     * the LLM would have no way to know about the output schemaj
+     */
+    const anyscaleAiFn = makeAi({
+      clientSupportsJsonSchema: true,
+      client: anyscale,
+      overrideSystemPrompt(description, inputSchema, outputSchema) {
+        return `
+        Your job is to generate an output for a function. The function is described as:
+        ${description}
+
+        The user will provide input that matches the following schema:
+        ${JSON.stringify(inputSchema, null, 2)}
+
+        Respond in JSON
+        `;
+      },
+      model: "mistralai/Mistral-7B-Instruct-v0.1",
+    });
+
+    const returnFamousActorsFromVibe = anyscaleAiFn(
+      z
+        .function()
+        .args(z.string())
+        .returns(
+          z.object({
+            actors: z.array(z.string()),
+          })
+        )
+        .describe(
+          "Return a list of famous actors that match the user provided vibe"
+        )
+    );
+
+    const result = await returnFamousActorsFromVibe("villain");
+
+    expect(Array.isArray(result.actors)).toEqual(true);
+  }, 10_000);
 });
