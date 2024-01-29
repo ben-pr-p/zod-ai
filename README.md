@@ -40,6 +40,37 @@ const actors = await returnFamousActorsFromVibe("villains");
 console.log(actors) // [ "Tom Hiddleston", "Heath Ledger", "Jack Nicholson", "Anthony Hopkins" ]
 ```
 
+### Support for Other Models
+
+In addition to OpenAI, Anyscale endpoints and Ollama are also supported.
+
+Anyscale endpoints have a special feature that constrains response generation to a specific JSON schema, which OpenAI and Ollama
+only offer constraining the response to JSON.
+
+To take advantage of Anyscale's schema feature, set the `clientSupportsJsonSchema` flag to true:
+```typescript
+const anyscale = new OpenAI({
+  baseURL: "https://api.endpoints.anyscale.com/v1",
+  apiKey: config.ANYSCALE_ENDPOINTS_API_KEY,
+});
+
+const anyscaleAiFn = makeAi({
+  clientSupportsJsonSchema: true,
+  client: anyscale,
+  model: "mistralai/Mistral-7B-Instruct-v0.1",
+});
+```
+
+The Anyscale model options with this mode are `mistralai/Mistral-7B-Instruct-v0.1` and `mistralai/Mixtral-8x7B-Instruct-v0.1`.
+That is documented [here](https://docs.endpoints.anyscale.com/guides/json_mode/).
+
+To use `zod-ai` with Ollama, just pass an `Ollama` client from [ollama-js](https://github.com/ollama/ollama-js).
+
+In my experience, `gpt-3.5-turbo` and `ollama` latency is about the same, even taking into account the network round trip
+which is not a factor for `ollama`. I was expecting better latency from ollama, but I
+didn't get it. Although Anyscale's documented latency claims are very good, I found it to be much higher (doing the same generation
+sometimes in 5 seconds that `gpt-3.5-turbo` and `ollama` do in 1 second), but not sure if I'm doing something wrong there.
+
 ## AI Calling Code
 
 In the above scenario, your code calls an AI model. You can also use `zod-ai` to simplify interaction with OpenAI's

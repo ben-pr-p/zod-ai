@@ -1,6 +1,6 @@
 {
   "name": "zod-ai",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "main": "dist/index.js",
   "files": [
     "dist"
@@ -31,6 +31,7 @@
     "zod": "^3.22.4"
   },
   "dependencies": {
+    "ollama": "^0.4.4",
     "tiny-invariant": "^1.3.1",
     "zod-to-json-schema": "^3.22.3"
   }

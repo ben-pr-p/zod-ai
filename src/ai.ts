@@ -3,6 +3,7 @@ import { OpenAI } from "openai";
 import invariant from "tiny-invariant";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { TrimmedJSONSchema, trimGeneratedJsonSchema } from "./util";
+import { Ollama } from "ollama";
 
 type GenerateSystemPrompt = (
   description: string,
@@ -15,7 +16,7 @@ type ModelOptions = Parameters<
 >["0"]["model"];
 
 type AiFnOptions = {
-  client: OpenAI;
+  client: OpenAI | Ollama;
   model: ModelOptions;
   overrideSystemPrompt?: GenerateSystemPrompt;
   clientSupportsJsonSchema?: boolean;
@@ -82,6 +83,10 @@ export const validateFunction = <
   };
 };
 
+const isOllama = (client: OpenAI | Ollama): client is Ollama => {
+  return client instanceof Ollama;
+};
+
 export const makeAi = (options: AiFnOptions) => {
   const { client, model } = options;
 
@@ -116,32 +121,56 @@ export const makeAi = (options: AiFnOptions) => {
       outputSchema
     );
 
-    const responseFormat = clientSupportsJsonSchema
-      ? ({
-          type: "json_object",
-          schema: outputSchema,
-        } as const)
-      : ({ type: "json_object" } as const);
+    const isOllama = client instanceof Ollama;
 
-    return async (argument: z.infer<Args>[0]) => {
-      const aiResult = await client.chat.completions.create({
-        model,
-        response_format: responseFormat,
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt,
-          },
-          {
-            role: "user",
-            content: JSON.stringify(argument),
-          },
-        ],
-      });
+    if (!isOllama) {
+      const responseFormat = clientSupportsJsonSchema
+        ? ({
+            type: "json_object",
+            schema: outputSchema,
+          } as const)
+        : ({ type: "json_object" } as const);
 
-      const jsonResponse = aiResult.choices[0].message.content;
-      const zodParsedResult = postProcessResult(JSON.parse(jsonResponse!));
-      return zodParsedResult as z.infer<Returns>;
-    };
+      return async (argument: z.infer<Args>[0]) => {
+        const aiResult = await client.chat.completions.create({
+          model,
+          response_format: responseFormat,
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+            {
+              role: "user",
+              content: JSON.stringify(argument),
+            },
+          ],
+        });
+
+        const jsonResponse = aiResult.choices[0].message.content;
+        const zodParsedResult = postProcessResult(JSON.parse(jsonResponse!));
+        return zodParsedResult as z.infer<Returns>;
+      };
+    } else {
+      return async (argument: z.infer<Args>[0]) => {
+        const response = await client.chat({
+          model,
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+            {
+              role: "user",
+              content: JSON.stringify(argument),
+            },
+          ],
+        });
+
+        const jsonResponse = response.message.content;
+        const zodParsedResult = postProcessResult(JSON.parse(jsonResponse!));
+        return zodParsedResult as z.infer<Returns>;
+      };
+    }
   };
 };

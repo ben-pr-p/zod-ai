@@ -3,7 +3,8 @@ import { describe, test, expect } from "bun:test";
 import { OpenAI } from "openai";
 import { z } from "zod";
 import { cleanEnv, str } from "envalid";
-
+// import { Ollama } from "ollama";
+import ollama from "ollama";
 const config = cleanEnv(process.env, {
   OPENAI_API_KEY: str(),
   ANYSCALE_ENDPOINTS_API_KEY: str(),
@@ -166,4 +167,30 @@ describe("anyscale json schema addition", () => {
 
     expect(Array.isArray(result.actors)).toEqual(true);
   }, 10_000);
+});
+
+describe("ollama", () => {
+  test("seeing how ollama works", async () => {
+    const mistralAiFn = makeAi({
+      client: ollama,
+      model: "dolphin2.1-mistral:latest",
+    });
+
+    const returnFamousActorsFromVibe = mistralAiFn(
+      z
+        .function()
+        .args(z.string())
+        .returns(
+          z.object({
+            actors: z.array(z.string()),
+          })
+        )
+        .describe(
+          "Return a list of famous actors that match the user provided vibe"
+        )
+    );
+
+    const result = await returnFamousActorsFromVibe("villain");
+    expect(Array.isArray(result.actors)).toEqual(true);
+  });
 });
