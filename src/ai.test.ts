@@ -172,8 +172,17 @@ describe("anyscale json schema addition", () => {
 describe("ollama", () => {
   test("seeing how ollama works", async () => {
     const mistralAiFn = makeAi({
-      client: ollama,
-      model: "dolphin2.1-mistral:latest",
+      chat: async (systemPrompt: string, userMessage: string) => {
+        const response = await ollama.chat({
+          model: "dolphin2.1-mistral",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+        });
+
+        return response.message.content;
+      },
     });
 
     const returnFamousActorsFromVibe = mistralAiFn(

@@ -3,7 +3,6 @@ import { OpenAI } from "openai";
 import invariant from "tiny-invariant";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { TrimmedJSONSchema, trimGeneratedJsonSchema } from "./util";
-import { Ollama } from "ollama";
 
 type GenerateSystemPrompt = (
   description: string,
@@ -15,12 +14,24 @@ type ModelOptions = Parameters<
   OpenAI["chat"]["completions"]["create"]
 >["0"]["model"];
 
-type AiFnOptions = {
-  client: OpenAI | Ollama;
+type AiFnOptionsWithOpenAIClient = {
+  client: OpenAI;
   model: ModelOptions;
   overrideSystemPrompt?: GenerateSystemPrompt;
   clientSupportsJsonSchema?: boolean;
 };
+
+type CustomChatFn = (
+  systemPrompt: string,
+  userMessage: string
+) => Promise<string>;
+
+type CustomAIClientOptions = {
+  chat: CustomChatFn;
+  overrideSystemPrompt?: GenerateSystemPrompt;
+};
+
+type AiFnOptions = AiFnOptionsWithOpenAIClient | CustomAIClientOptions;
 
 export const validateFunction = <
   Args extends ZodTuple<any, any>,
@@ -83,15 +94,7 @@ export const validateFunction = <
   };
 };
 
-const isOllama = (client: OpenAI | Ollama): client is Ollama => {
-  return client instanceof Ollama;
-};
-
 export const makeAi = (options: AiFnOptions) => {
-  const { client, model } = options;
-
-  const clientSupportsJsonSchema = options.clientSupportsJsonSchema ?? false;
-
   const createSystemPrompt =
     options.overrideSystemPrompt ||
     ((
@@ -121,9 +124,11 @@ export const makeAi = (options: AiFnOptions) => {
       outputSchema
     );
 
-    const isOllama = client instanceof Ollama;
+    if ("client" in options) {
+      const { client } = options;
+      const clientSupportsJsonSchema =
+        options.clientSupportsJsonSchema ?? false;
 
-    if (!isOllama) {
       const responseFormat = clientSupportsJsonSchema
         ? ({
             type: "json_object",
@@ -133,7 +138,7 @@ export const makeAi = (options: AiFnOptions) => {
 
       return async (argument: z.infer<Args>[0]) => {
         const aiResult = await client.chat.completions.create({
-          model,
+          model: options.model,
           response_format: responseFormat,
           messages: [
             {
@@ -153,21 +158,12 @@ export const makeAi = (options: AiFnOptions) => {
       };
     } else {
       return async (argument: z.infer<Args>[0]) => {
-        const response = await client.chat({
-          model,
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt,
-            },
-            {
-              role: "user",
-              content: JSON.stringify(argument),
-            },
-          ],
-        });
+        const response = await options.chat(
+          systemPrompt,
+          JSON.stringify(argument)
+        );
 
-        const jsonResponse = response.message.content;
+        const jsonResponse = response;
         const zodParsedResult = postProcessResult(JSON.parse(jsonResponse!));
         return zodParsedResult as z.infer<Returns>;
       };

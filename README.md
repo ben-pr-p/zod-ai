@@ -42,7 +42,7 @@ console.log(actors) // [ "Tom Hiddleston", "Heath Ledger", "Jack Nicholson", "An
 
 ### Support for Other Models
 
-In addition to OpenAI, Anyscale endpoints and Ollama are also supported.
+In addition to OpenAI, Anyscale endpoints and custom access (like Ollama) are also supported.
 
 Anyscale endpoints have a special feature that constrains response generation to a specific JSON schema, which OpenAI and Ollama
 only offer constraining the response to JSON.
@@ -64,7 +64,24 @@ const anyscaleAiFn = makeAi({
 The Anyscale model options with this mode are `mistralai/Mistral-7B-Instruct-v0.1` and `mistralai/Mixtral-8x7B-Instruct-v0.1`.
 That is documented [here](https://docs.endpoints.anyscale.com/guides/json_mode/).
 
-To use `zod-ai` with Ollama, just pass an `Ollama` client from [ollama-js](https://github.com/ollama/ollama-js).
+To use `zod-ai` with Ollama, pass in a custom chat function, like so:
+```typescript
+const mistralAiFn = makeAi({
+  chat: async (systemPrompt: string, userMessage: string) => {
+    const response = await ollama.chat({
+      model: "dolphin2.1-mistral",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+    });
+
+    return response.message.content;
+  },
+});
+```
+You can put any call to an LLM that you'd like inside of that `chat` parameter.
+
 
 In my experience, `gpt-3.5-turbo` and `ollama` latency is about the same, even taking into account the network round trip
 which is not a factor for `ollama`. I was expecting better latency from ollama, but I

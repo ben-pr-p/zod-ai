@@ -1,6 +1,6 @@
 {
   "name": "zod-ai",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "main": "dist/index.js",
   "files": [
     "dist"
@@ -23,11 +23,11 @@
   },
   "devDependencies": {
     "bun-types": "latest",
-    "envalid": "^8.0.0"
+    "envalid": "^8.0.0",
+    "ollama": "^0.4.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0",
-    "ollama": "^0.4.4",
     "openai": "^4.24.1",
     "zod": "^3.22.4"
   },
