@@ -3,8 +3,8 @@ import { describe, test, expect } from "bun:test";
 import { OpenAI } from "openai";
 import { z } from "zod";
 import { cleanEnv, str } from "envalid";
-// import { Ollama } from "ollama";
 import ollama from "ollama";
+
 const config = cleanEnv(process.env, {
   OPENAI_API_KEY: str(),
   ANYSCALE_ENDPOINTS_API_KEY: str(),
